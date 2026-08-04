@@ -1,0 +1,54 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * "Fraunces"/"Inter"/"IBM Plex Mono" were referenced by name throughout
+ * this entire app's CSS (family-registry-tokens.css's .font-display/
+ * .font-body/.font-mono classes) from early in this project, but never
+ * actually loaded anywhere — every page has been silently falling back
+ * to whatever generic serif/sans-serif/monospace the browser had
+ * installed this whole time. Self-hosted here (not a next/font/google
+ * build-time fetch to Google's CDN) so the build itself never depends
+ * on external network access — which also matters given this app's
+ * offline support: a font that only loads from an external CDN at
+ * runtime would be exactly the kind of thing that silently breaks
+ * offline even though everything else works.
+ */
+@font-face {
+  font-family: "Fraunces Variable";
+  src: url("/fonts/Fraunces.ttf") format("truetype-variations");
+  font-weight: 100 900;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Inter Variable";
+  src: url("/fonts/Inter.ttf") format("truetype-variations");
+  font-weight: 100 900;
+  font-display: swap;
+}
+@font-face {
+  font-family: "IBM Plex Mono Local";
+  src: url("/fonts/IBMPlexMono-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: "IBM Plex Mono Local";
+  src: url("/fonts/IBMPlexMono-Medium.ttf") format("truetype");
+  font-weight: 500;
+  font-display: swap;
+}
+
+:root {
+  --font-fraunces: "Fraunces Variable";
+  --font-inter: "Inter Variable";
+  --font-plex-mono: "IBM Plex Mono Local";
+}
+
+html,
+body {
+  padding: 0;
+  margin: 0;
+  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+}
