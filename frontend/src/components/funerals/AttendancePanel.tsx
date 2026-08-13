@@ -4,11 +4,20 @@ import { useState } from "react";
 import { useAttendance, useAttendanceSummary, useFuneralLogisticsActions } from "@/lib/hooks/useFuneralLogistics";
 import { membersApi } from "@/lib/api/members";
 import { useQuery } from "@tanstack/react-query";
+import { useAuthStore } from "@/store/authStore";
 
 export function AttendancePanel({ funeralId }: { funeralId: string }) {
   const { data: records, isLoading } = useAttendance(funeralId);
   const { data: summary } = useAttendanceSummary(funeralId);
   const { recordAttendance } = useFuneralLogisticsActions(funeralId);
+  const currentUser = useAuthStore((s) => s.user);
+  // Matches funeral_logistics.permissions.ATTENDANCE_ROLES exactly —
+  // a plain member could otherwise see and use the "mark attendance"
+  // form for people it always 403s them to actually record.
+  const canRecordAttendance = Boolean(
+    currentUser?.is_superuser
+    || (currentUser?.role && ["community_admin", "secretary", "collector", "notification_officer"].includes(currentUser.role))
+  );
 
   const [memberQuery, setMemberQuery] = useState("");
   const [guestName, setGuestName] = useState("");
@@ -27,6 +36,7 @@ export function AttendancePanel({ funeralId }: { funeralId: string }) {
         </p>
       )}
 
+      {canRecordAttendance && (
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         <div className="rounded-sm bg-[var(--forest-soft)] p-3">
           <label className="text-xs font-medium text-[var(--forest)]">Check in a member</label>
@@ -69,6 +79,7 @@ export function AttendancePanel({ funeralId }: { funeralId: string }) {
           </div>
         </div>
       </div>
+      )}
 
       <ul className="mt-4 max-h-48 divide-y divide-[var(--rule)] overflow-y-auto">
         {isLoading && <li className="py-2 text-sm text-[var(--ink-soft)]">Loading…</li>}

@@ -29,7 +29,24 @@ export default function FamilyFundPage() {
   const { data: families } = useFamilies(false);
   const family = families?.find((f) => f.id === familyId);
   const currentUser = useAuthStore((s) => s.user);
-  const isFamilyHead = currentUser?.role === "family_head";
+  // 'Family head should be restricted from seeing other families' data.'
+  // Role alone isn't enough — a Family Head navigating directly to a
+  // DIFFERENT family's fund URL must not get this family's own
+  // officer-assignment authority just because their role matches.
+  const isFamilyHead = currentUser?.role === "family_head" && family?.family_head?.id === currentUser?.linked_member_id;
+  // 'Only the family head, the family secretary, and the family
+  // treasurer can see this page' — the backend already refuses actual
+  // data to anyone else (see CanAccessFamilyFund and the "Not
+  // permitted" states below), but the New Fund / Record a Purchase /
+  // Download PDF buttons had no matching check at all, so an
+  // unauthorized member saw fully-formed action buttons for a page
+  // they could never actually use.
+  const canManageThisFamily = Boolean(
+    currentUser?.is_superuser || currentUser?.role === "community_admin" ||
+    family?.family_head?.id === currentUser?.linked_member_id ||
+    family?.family_secretary?.id === currentUser?.linked_member_id ||
+    family?.family_treasurer?.id === currentUser?.linked_member_id
+  );
 
   const { data: funds, isLoading, isError, error } = useFamilyFunds(familyId);
   const createFund = useCreateFamilyFund(familyId);
@@ -51,12 +68,14 @@ export default function FamilyFundPage() {
               and the family treasurer can see this page.
             </p>
           </div>
-          <button
-            onClick={() => setShowCreate(true)}
-            className="shrink-0 bg-[var(--forest)] px-4 py-2 text-sm font-medium text-white"
-          >
-            New fund
-          </button>
+          {canManageThisFamily && (
+            <button
+              onClick={() => setShowCreate(true)}
+              className="shrink-0 bg-[var(--forest)] px-4 py-2 text-sm font-medium text-white"
+            >
+              New fund
+            </button>
+          )}
         </div>
       </header>
 
@@ -510,9 +529,15 @@ function FuneralExpensesPanel({ familyId }: { familyId: string }) {
   );
   // "The family head is not allowed to purchase any items, his own is
   // to review, reject or approve items bought." Recording a purchase
-  // is deliberately narrower — Secretary/Treasurer, never the Head.
-  const isFamilyHead = Boolean(user?.linked_member_id && family?.family_head?.id === user.linked_member_id);
-  const canRecord = !isFamilyHead;
+  // belongs specifically to THIS family's own Secretary or Treasurer
+  // — not "anyone who isn't the Head," which would have let a
+  // completely unrelated community member record a purchase for a
+  // family they have no connection to at all.
+  const canRecord = Boolean(
+    user?.is_superuser
+    || (user?.linked_member_id && family?.family_secretary?.id === user.linked_member_id)
+    || (user?.linked_member_id && family?.family_treasurer?.id === user.linked_member_id)
+  );
 
   return (
     <section className="mt-8 rounded-sm border border-[var(--rule)] bg-white p-5">
@@ -529,7 +554,7 @@ function FuneralExpensesPanel({ familyId }: { familyId: string }) {
           </p>
         </div>
         <div className="flex shrink-0 gap-2">
-          {funeralId && (
+          {funeralId && (isFinanceOfficer || canRecord) && (
             <button
               onClick={async () => {
                 const res = await authFetch(`/families/${familyId}/funeral-expenses/summary/?funeral_event=${funeralId}&export=pdf`);

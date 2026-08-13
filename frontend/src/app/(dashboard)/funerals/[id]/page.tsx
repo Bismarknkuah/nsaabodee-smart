@@ -81,7 +81,7 @@ export default function FuneralDetailPage() {
           <DeskAssignmentsPanel funeralId={id} />
           <MemorialPageManager funeralId={id} />
           <QrCodePanel funeralId={id} />
-          <CommitteePositionsPanel funeralId={id} />
+          <CommitteePositionsPanel funeralId={id} deceasedFamilyId={funeral.deceased_family} />
         </div>
 
         <h2 className="font-display mt-4 text-xl">Ledger</h2>

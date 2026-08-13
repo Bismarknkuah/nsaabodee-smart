@@ -4,6 +4,7 @@ import "@/styles/family-registry-tokens.css";
 import { useMemo, useState } from "react";
 import { useFamilies } from "@/lib/hooks/useFamilies";
 import { useFamilyUiStore } from "@/store/familyUiStore";
+import { useAuthStore } from "@/store/authStore";
 import { crestColorFor } from "@/lib/familyCrest";
 import type { Family } from "@/types/family";
 import { AddFamilyDialog } from "@/components/families/AddFamilyDialog";
@@ -34,6 +35,16 @@ const STATUS_STYLE: Record<Family["status"], string> = {
 export default function FamilyRegistryPage() {
   const { includeInactive, toggleIncludeInactive, openDialog, activeDialog } = useFamilyUiStore();
   const { data: families, isLoading, isError, error } = useFamilies(includeInactive);
+  const currentUser = useAuthStore((s) => s.user);
+  // This whole page's nav link is already Community Admin/Chairman/
+  // Secretary-only — but nav gating alone doesn't stop someone from
+  // typing the URL directly, and these buttons had no check of their
+  // own, so a plain Community Member who did that would see Rename,
+  // Merge, Deactivate, and Delete for every family in the community.
+  const canManageFamilies = Boolean(
+    currentUser?.is_superuser
+    || (currentUser?.role && ["community_admin", "chairman", "secretary"].includes(currentUser.role))
+  );
   const [query, setQuery] = useState("");
 
   const filtered = useMemo(() => {
@@ -54,12 +65,14 @@ export default function FamilyRegistryPage() {
               </p>
               <h1 className="font-display mt-1 text-4xl">Families</h1>
             </div>
-            <button
-              onClick={() => openDialog("add")}
-              className="bg-[var(--forest)] px-4 py-2 text-sm font-medium text-white hover:opacity-90"
-            >
-              Add family
-            </button>
+            {canManageFamilies && (
+              <button
+                onClick={() => openDialog("add")}
+                className="bg-[var(--forest)] px-4 py-2 text-sm font-medium text-white hover:opacity-90"
+              >
+                Add family
+              </button>
+            )}
           </div>
           <p className="mt-2 max-w-xl text-sm text-[var(--ink-soft)]">
             Every family here belongs only to this community. Renaming, merging, or
@@ -135,7 +148,7 @@ export default function FamilyRegistryPage() {
               </div>
 
               <div className="flex shrink-0 flex-wrap gap-2 text-xs">
-                {family.status === "active" && (
+                {family.status === "active" && canManageFamilies && (
                   <>
                     <ActionButton onClick={() => openDialog("rate", family)}>Rate</ActionButton>
                     <ActionButton onClick={() => openDialog("rename", family)}>Rename</ActionButton>

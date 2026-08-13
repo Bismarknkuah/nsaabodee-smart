@@ -1,7 +1,7 @@
 "use client";
 
 import "@/styles/family-registry-tokens.css";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useContributionCategories, useCampaigns, useCampaignObligations, useWelfareActions } from "@/lib/hooks/useWelfare";
 import { familiesApi } from "@/lib/api/families";
@@ -228,7 +228,17 @@ function NewCampaignDialog({
   const [title, setTitle] = useState("");
   const [amount, setAmount] = useState("");
   const [familyId, setFamilyId] = useState("");
+  const currentUser = useAuthStore((s) => s.user);
   const { data: families } = useQuery({ queryKey: ["families-for-welfare"], queryFn: () => familiesApi.list() });
+  // 'Family head should be restricted from seeing other families'
+  // data.' This said "Select your family" but actually listed every
+  // family in the community for anyone to pick — locked to the real
+  // "your family" instead, the same detection already used for member
+  // registration.
+  const ownFamily = families?.find((f) => f.family_head?.id === currentUser?.linked_member_id);
+  useEffect(() => {
+    if (ownFamily) setFamilyId(ownFamily.id);
+  }, [ownFamily]);
   const selectedCategory = categories.find((c) => c.id === categoryId);
   const mutation = scope === "community" ? onInitiateCommunity : onInitiateFamily;
 
@@ -272,10 +282,9 @@ function NewCampaignDialog({
         </select>
 
         {scope === "family" && (
-          <select value={familyId} onChange={(e) => setFamilyId(e.target.value)} className="w-full rounded-sm border border-[var(--rule)] px-3 py-2 text-sm">
-            <option value="">Select your family…</option>
-            {families?.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
-          </select>
+          <div className="w-full rounded-sm border border-[var(--rule)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--ink-soft)]">
+            {ownFamily ? ownFamily.name : "Loading your family…"}
+          </div>
         )}
 
         <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title, e.g. July 2026 Welfare Contribution"

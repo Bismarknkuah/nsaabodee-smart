@@ -5564,6 +5564,61 @@ end to end.
 Full frontend production build, vitest, and a backend regression sweep
 (`accounts`: 88, `dashboard`: 85) all clean.
 
+## 107. Frontend permission audit — six real "backend correctly refuses, but the button still showed" bugs
+
+Prompted by two screenshots showing a plain Community Member seeing
+fully-formed "New fund," "Record a purchase," and "Download PDF"
+buttons on a family fund page the backend correctly blocked, plus an
+"Appoint someone to the committee" form on a funeral page. Rather than
+patch just those two spots, searched systematically across every
+funeral/family component for the same pattern: action handlers
+present with zero permission check backing them.
+
+**Family Fund page**: found the actual `canRecord` logic was
+backwards — `!isFamilyHead` meant "anyone who isn't this family's
+head," not "this family's own Secretary or Treasurer," so a
+completely unrelated Community Member could record purchases for a
+family they have no connection to. Fixed New Fund, Record a Purchase,
+and Download PDF to all check this specific family's own officers.
+Also tightened `isFamilyHead` itself, which only checked the role
+generally — a Family Head navigating directly to a *different*
+family's fund URL would have gotten that family's own
+officer-assignment authority just because their role matched.
+
+**Funeral Committee panel**: the "Appoint" and "Remove" UI had a
+deliberate prior design choice of "let the backend's 403 decide," which
+the screenshot showed doesn't work well in practice — gated to match
+`_can_organize_committee_for` exactly (community-wide leadership, or
+specifically the deceased's own family's Head/Secretary).
+
+**Welfare campaign family selection**: a third real bug found while
+auditing per the person's written concern, not from a screenshot — the
+"Start a campaign" dialog's family dropdown said "Select your family"
+but actually listed every family in the community for anyone to pick.
+Replaced with a locked display showing the Family Head's real own
+family, reusing the same `linked_member_id` detection already
+established for member registration.
+
+**Families page**: Rename, Merge, Deactivate, Delete, Transfer
+Members, Bereaved Rep, Rate, and Add Family had no client-side check
+at all — nav-level gating doesn't stop someone from typing the URL
+directly. Gated the whole action group to Community
+Admin/Chairman/Secretary, leaving History (read-only) visible to
+anyone who reaches the page.
+
+**Attendance and Member Rate Overrides panels**: found via a
+systematic search (grep for action handlers with zero `useAuthStore`
+usage) rather than a screenshot — both had fully-functional forms with
+no gating. Attendance now matches `ATTENDANCE_ROLES` exactly (Community
+Admin, Secretary, Collector, Notification Officer); Member Rate
+Overrides now checks this specific family's own Head or Secretary,
+matching the backend's `is_this_familys_officer` check precisely.
+
+Full frontend production build, vitest, and a backend sanity check —
+all clean. All six fixes were frontend-only; every backend permission
+underneath was already correct, confirmed directly rather than
+assumed in each case.
+
 ## Suggested next phases
 
 1. **Actually run `docker build` / `docker-compose up`** somewhere with

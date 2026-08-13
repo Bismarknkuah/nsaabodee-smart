@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { funeralsApi } from "@/lib/api/funerals";
 import { membersApi } from "@/lib/api/members";
+import { useAuthStore } from "@/store/authStore";
+import { useFamilies } from "@/lib/hooks/useFamilies";
 import { SUGGESTED_FUNERAL_COMMITTEE_TITLES } from "@/types/funeral";
 
 /**
@@ -17,8 +19,31 @@ import { SUGGESTED_FUNERAL_COMMITTEE_TITLES } from "@/types/funeral";
  * server-side (community-wide leadership, or the deceased's own
  * family Head/Secretary); this component doesn't try to guess that
  * client-side, it just shows the buttons and lets the backend decide.
+ *
+ * UPDATE: that "let the backend decide" approach meant a plain
+ * Community Member saw a fully-formed "Appoint someone to the
+ * committee" form that would always 403 for them — the same real gap
+ * already fixed on Desk Assignments and Family Fund. Gated to match
+ * funerals.services._can_organize_committee_for exactly: community
+ * -wide leadership, or specifically the deceased's OWN family's Head
+ * or Secretary — never another family's officers, even if their role
+ * matches.
  */
-export function CommitteePositionsPanel({ funeralId }: { funeralId: string }) {
+export function CommitteePositionsPanel({ funeralId, deceasedFamilyId }: { funeralId: string; deceasedFamilyId: string }) {
+  const currentUser = useAuthStore((s) => s.user);
+  const { data: families } = useFamilies(false);
+  const ownFamily = families?.find(
+    (f) => f.family_head?.id === currentUser?.linked_member_id || f.family_secretary?.id === currentUser?.linked_member_id
+  );
+  const canOrganize = Boolean(
+    currentUser?.is_superuser
+    || (currentUser?.role && ["community_admin", "chairman", "secretary"].includes(currentUser.role))
+    || (
+      currentUser?.role && ["family_head", "family_secretary"].includes(currentUser.role)
+      && ownFamily?.id === deceasedFamilyId
+    )
+  );
+
   const qc = useQueryClient();
   const { data: positions, isLoading } = useQuery({
     queryKey: ["committee-positions", funeralId],
@@ -61,9 +86,11 @@ export function CommitteePositionsPanel({ funeralId }: { funeralId: string }) {
           {positions.map((p) => (
             <li key={p.id} className="flex items-center justify-between px-3 py-2 text-sm">
               <span><span className="font-medium">{p.title}</span> — {p.member_name}</span>
-              <button onClick={() => remove.mutate(p.id)} disabled={remove.isPending} className="text-xs text-[var(--clay-red)] hover:underline">
-                Remove
-              </button>
+              {canOrganize && (
+                <button onClick={() => remove.mutate(p.id)} disabled={remove.isPending} className="text-xs text-[var(--clay-red)] hover:underline">
+                  Remove
+                </button>
+              )}
             </li>
           ))}
         </ul>
@@ -71,6 +98,8 @@ export function CommitteePositionsPanel({ funeralId }: { funeralId: string }) {
 
       <div className="mt-4 border-t border-[var(--rule)] pt-4">
         <p className="text-xs font-medium uppercase tracking-wide text-[var(--ink-soft)]">Appoint someone to the committee</p>
+        {canOrganize && (
+        <>
         <div className="mt-2 flex flex-wrap items-center gap-2">
           <select
             value={title}
@@ -118,6 +147,8 @@ export function CommitteePositionsPanel({ funeralId }: { funeralId: string }) {
           </ul>
         )}
         {appoint.isError && <p className="mt-1 text-xs text-[var(--clay-red)]">{appoint.error.message}</p>}
+        </>
+        )}
       </div>
     </section>
   );

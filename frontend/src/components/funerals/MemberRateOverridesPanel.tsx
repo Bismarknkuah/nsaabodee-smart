@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { membersApi } from "@/lib/api/members";
 import { useMemberRateOverrides, useSetMemberRateOverrides } from "@/lib/hooks/useFunerals";
+import { useFamilies } from "@/lib/hooks/useFamilies";
+import { useAuthStore } from "@/store/authStore";
 import { formatCedis } from "@/lib/formatCedis";
 
 /**
@@ -11,15 +13,33 @@ import { formatCedis } from "@/lib/formatCedis";
  * amount for each member [of their own family] have to pay." Only
  * meaningful while the funeral is still awaiting approval — the
  * backend refuses this the moment it activates (obligations already
- * exist by then). If the signed-in person isn't this family's own head
- * or secretary, the backend's 403 surfaces as a quiet, honest "you
- * don't have access" rather than a broken form.
+ * exist by then).
+ *
+ * UPDATE: originally left ungated client-side, relying on the
+ * backend's 403 to surface as "you don't have access" — but that
+ * meant an unrelated Community Member saw a fully-formed rate-setting
+ * form. Now checked directly against this specific family, matching
+ * the backend's own is_this_familys_officer logic exactly.
  */
 export function MemberRateOverridesPanel({ funeralId, deceasedFamilyId }: { funeralId: string; deceasedFamilyId: string }) {
+  const currentUser = useAuthStore((s) => s.user);
+  const { data: allFamilies } = useFamilies(false);
+  const ownFamily = allFamilies?.find(
+    (f) => f.family_head?.id === currentUser?.linked_member_id || f.family_secretary?.id === currentUser?.linked_member_id
+  );
+  const canSetOverrides = Boolean(
+    currentUser?.is_superuser
+    || currentUser?.role === "community_admin"
+    || (
+      currentUser?.role && ["family_head", "family_secretary"].includes(currentUser.role)
+      && ownFamily?.id === deceasedFamilyId
+    )
+  );
+
   const { data: familyMembers } = useQuery({
     queryKey: ["family-members", deceasedFamilyId],
     queryFn: () => membersApi.list({ family: deceasedFamilyId }),
-    enabled: Boolean(deceasedFamilyId),
+    enabled: Boolean(deceasedFamilyId) && canSetOverrides,
   });
   const { data: existingOverrides, isError } = useMemberRateOverrides(funeralId);
   const setOverrides = useSetMemberRateOverrides(funeralId);
@@ -28,6 +48,7 @@ export function MemberRateOverridesPanel({ funeralId, deceasedFamilyId }: { fune
   const [expanded, setExpanded] = useState(false);
 
   if (isError) return null; // not this family's officer — say nothing rather than show a broken panel
+  if (!canSetOverrides) return null;
 
   const existingByMember = Object.fromEntries((existingOverrides ?? []).map((o) => [o.member, o.amount]));
 
