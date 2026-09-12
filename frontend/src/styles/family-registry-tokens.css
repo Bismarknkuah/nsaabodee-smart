@@ -1,0 +1,50 @@
+/*
+  Design plan — Family Registry (Nsaabodeɛ Smart)
+
+  Concept: a physical ledger book of record, not a SaaS dashboard. Family
+  rows read like ledger entries; each has a small hand-set "crest tab" —
+  a colored tab deterministically derived from the family name — echoing
+  how clans are traditionally identified by a symbol/color, and doubling
+  as a fast visual scan aid once a community has 15+ families.
+
+  Color:
+    --paper:      #FBFAF7  page background, warm but not the generic cream
+    --ink:        #20291F  primary text, deep forest-charcoal (not pure black)
+    --ink-soft:   #5C6459  secondary text / metadata
+    --rule:       #DED6C4  hairline dividers between ledger rows
+    --forest:     #2B6E4E  primary action color (add / confirm) — Ghana-flag green
+    --gold:       #B8892B  family-head badge, used sparingly, never decorative
+    --clay-red:   #A93B2E  destructive / defaulter-adjacent actions only
+    --surface:    #F4F0E6  card/dialog surface, one step off paper for depth
+
+  Type:
+    display: "Fraunces", serif       — family names, page title
+    body:    "Inter", sans-serif      — UI copy, buttons, form labels
+    mono:    "IBM Plex Mono", monospace — IDs, timestamps, audit log
+*/
+
+:root {
+  --paper: #fbfaf7;
+  --ink: #20291f;
+  --ink-soft: #5c6459;
+  --rule: #ded6c4;
+  --forest: #2b6e4e;
+  --forest-soft: #e8f1ec;
+  --gold: #b8892b;
+  --gold-soft: #f6ecd8;
+  --clay-red: #a93b2e;
+  --clay-red-soft: #f6e6e3;
+  --surface: #f4f0e6;
+  --violet: #7a4b8c;
+  --violet-soft: #ede3f0;
+}
+
+.font-display {
+  font-family: var(--font-fraunces), ui-serif, Georgia, serif;
+}
+.font-body {
+  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+}
+.font-mono {
+  font-family: var(--font-plex-mono), ui-monospace, monospace;
+}
