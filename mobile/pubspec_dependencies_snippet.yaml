@@ -1,0 +1,41 @@
+# Add these to the app's existing pubspec.yaml — this module doesn't ship
+# its own pubspec since it's a set of feature folders inside the main
+# Flutter app (families/, funerals/, gifts/, members/, funeral_logistics/,
+# reports/, printing/).
+dependencies:
+  http: ^1.2.0
+  sqflite: ^2.3.0
+  path: ^1.9.0
+  connectivity_plus: ^6.0.0
+  uuid: ^4.4.0
+  image_picker: ^1.1.2   # offline photo capture for member registration
+  path_provider: ^2.1.0  # saving fetched receipt PDFs to a temp file
+
+  # NOT yet added — ReceiptViewScreen's PDF download saves the file today
+  # (that part uses only path_provider + dart:io, both stable) but can't
+  # yet OPEN it with the OS's PDF viewer without one of these. Verify the
+  # current API against pub.dev before wiring in (PdfFileOpener.saveAndOpen
+  # is a clearly-marked stub waiting on this exact package):
+  #   open_filex: ^x.y.z
+
+  # NOT yet added, because BluetoothThermalPrinterConnection (in
+  # printing/data/thermal_printer_connection.dart) is deliberately left
+  # unimplemented rather than wired up against an unverified API — see
+  # that class's doc comment. Add this (or whatever Bluetooth printer
+  # package is current) ONLY once you've checked its real API against
+  # pub.dev and filled in that class's three methods against it:
+  #   blue_thermal_printer: ^x.y.z
+
+# --- Android manifest notes for printing/ -----------------------------
+# NetworkThermalPrinterConnection uses a plain dart:io Socket, which
+# needs the standard INTERNET permission (add to android/app/src/main/
+# AndroidManifest.xml if it isn't already there for other reasons):
+#   <uses-permission android:name="android.permission.INTERNET" />
+#
+# A future Bluetooth implementation will additionally need, at minimum
+# (exact permissions depend on target Android API level and the chosen
+# package's own manifest requirements — check its docs):
+#   <uses-permission android:name="android.permission.BLUETOOTH" />
+#   <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
+#   <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+#   <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />

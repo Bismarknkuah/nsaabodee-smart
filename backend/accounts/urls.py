@@ -1,0 +1,20 @@
+from django.urls import path
+
+from .views import ChangePasswordView, DemoLoginView, LoginView, LogoutView, ManageableUsersView, MeView, RefreshView, RequestOtpView, ResetPasswordWithOtpView, SetDisabledFeaturesView, SetDisabledFeaturesForFamilyView, SetDisabledFeaturesForAllMembersView, SwitchDashboardContextView, VerifyOtpView
+
+urlpatterns = [
+    path("auth/login/", LoginView.as_view(), name="auth-login"),
+    path("auth/refresh/", RefreshView.as_view(), name="auth-refresh"),
+    path("auth/logout/", LogoutView.as_view(), name="auth-logout"),
+    path("auth/me/", MeView.as_view(), name="auth-me"),
+    path("auth/switch-context/", SwitchDashboardContextView.as_view(), name="auth-switch-context"),
+    path("auth/change-password/", ChangePasswordView.as_view(), name="auth-change-password"),
+    path("auth/demo-login/", DemoLoginView.as_view(), name="auth-demo-login"),
+    path("auth/otp/request/", RequestOtpView.as_view(), name="auth-otp-request"),
+    path("auth/otp/verify/", VerifyOtpView.as_view(), name="auth-otp-verify"),
+    path("auth/otp/reset-password/", ResetPasswordWithOtpView.as_view(), name="auth-otp-reset-password"),
+    path("accounts/manageable-users/", ManageableUsersView.as_view(), name="accounts-manageable-users"),
+    path("accounts/manageable-users/disabled-features/", SetDisabledFeaturesView.as_view(), name="accounts-set-disabled-features"),
+    path("accounts/manageable-users/disabled-features/family/", SetDisabledFeaturesForFamilyView.as_view(), name="accounts-set-disabled-features-for-family"),
+    path("accounts/manageable-users/disabled-features/all-members/", SetDisabledFeaturesForAllMembersView.as_view(), name="accounts-set-disabled-features-for-all-members"),
+]
