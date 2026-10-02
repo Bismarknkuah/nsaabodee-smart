@@ -1,0 +1,129 @@
+"use client";
+
+import "@/styles/family-registry-tokens.css";
+import { useState } from "react";
+import { useParams } from "next/navigation";
+import { useFuneral, useFuneralObligations, useFuneralActions } from "@/lib/hooks/useFunerals";
+import { formatCedis } from "@/lib/formatCedis";
+import { ObligationTable, ObligationFilters } from "@/components/funerals/ObligationTable";
+import { GiftLedgerPanel } from "@/components/funerals/GiftLedgerPanel";
+import { InLawContributionsPanel } from "@/components/funerals/InLawContributionsPanel";
+import { ExpensePanel } from "@/components/funerals/ExpensePanel";
+import { AttendancePanel } from "@/components/funerals/AttendancePanel";
+import { FinancialOverviewStrip } from "@/components/funerals/FinancialOverviewStrip";
+import { LiveUpdateBanner } from "@/components/funerals/LiveUpdateBanner";
+import { PredictedCollectionsCard } from "@/components/funerals/PredictedCollectionsCard";
+import { FourLedgerBreakdownCard } from "@/components/funerals/FourLedgerBreakdownCard";
+import { FuneralDailyBreakdownCard } from "@/components/funerals/FuneralDailyBreakdownCard";
+import { DeskAssignmentsPanel } from "@/components/funerals/DeskAssignmentsPanel";
+import { MemorialPageManager } from "@/components/funerals/MemorialPageManager";
+import { QrCodePanel } from "@/components/funerals/QrCodePanel";
+import { CommitteePositionsPanel } from "@/components/funerals/CommitteePositionsPanel";
+import { ClosingReportPanel } from "@/components/funerals/ClosingReportPanel";
+import { useFuneralLiveUpdates } from "@/lib/hooks/useFuneralLiveUpdates";
+import type { PaymentStatus, RateType } from "@/types/funeral";
+import { useAuthStore } from "@/store/authStore";
+
+export default function FuneralDetailPage() {
+  const { id } = useParams<{ id: string }>();
+  const { data: funeral } = useFuneral(id);
+  const { close } = useFuneralActions(id);
+  const currentUser = useAuthStore((s) => s.user);
+  // 'The community chairman or secretary decides the time to close
+  // the ledger.' Matches CanApproveFuneralOpening exactly — this page
+  // is reached by every FUNERAL_BROWSE_ROLES role (Treasurer, Auditor,
+  // Collector, every family officer), all of whom always 403 on this.
+  const canCloseFuneral = Boolean(
+    currentUser?.is_superuser
+    || (currentUser?.role && ["community_admin", "chairman", "secretary"].includes(currentUser.role))
+  );
+
+  const [rateType, setRateType] = useState<RateType | undefined>(undefined);
+  const [paymentStatus, setPaymentStatus] = useState<PaymentStatus | undefined>(undefined);
+  const { data: obligations, isLoading } = useFuneralObligations(id, { rate_type: rateType, payment_status: paymentStatus });
+  const { connected, lastEvent } = useFuneralLiveUpdates(id);
+
+  if (!funeral) return null;
+
+  return (
+    <div className="font-body min-h-screen bg-[var(--bg)] text-[var(--text)]">
+      <header className="border-b border-[var(--border)] bg-[var(--card)] px-8 py-6">
+        <p className="font-mono text-[11px] font-medium uppercase tracking-[0.2em] text-[var(--text-soft)]">
+          {funeral.status === "active" ? "Currently collecting" : funeral.status}
+        </p>
+        <div className="mt-2">
+          <LiveUpdateBanner connected={connected} lastEvent={lastEvent} />
+        </div>
+        <div className="mt-1 flex items-end justify-between gap-4">
+          <div>
+            <h1 className="font-display text-4xl">{funeral.deceased_name}</h1>
+            <p className="mt-1 text-sm text-[var(--text-soft)]">
+              {funeral.deceased_family_name} family &middot; died{" "}
+              {new Date(funeral.date_of_death).toLocaleDateString()} &middot; collecting since{" "}
+              {new Date(funeral.collection_start_date).toLocaleDateString()}
+            </p>
+          </div>
+          {funeral.status === "active" && canCloseFuneral && (
+            <button
+              onClick={() => close.mutate()}
+              className="rounded-lg border border-[var(--border)] px-4 py-2 text-sm font-medium hover:border-[var(--ink)]"
+            >
+              Close collection
+            </button>
+          )}
+        </div>
+
+        <div className="mt-4 flex flex-wrap gap-4 rounded-lg bg-[var(--bg)] p-4 text-sm">
+          <RateChip label={`${funeral.deceased_family_name} family rate`} amount={funeral.own_family_amount} accent="forest" />
+          <RateChip label="General rate — male" amount={funeral.general_male_amount} accent="gold" />
+          <RateChip label="General rate — female" amount={funeral.general_female_amount} accent="gold" />
+        </div>
+      </header>
+
+      <main className="px-8 pb-16">
+        <FourLedgerBreakdownCard funeralId={id} />
+        <FuneralDailyBreakdownCard funeralId={id} />
+
+        <div className="my-4">
+          <PredictedCollectionsCard funeralId={id} />
+        </div>
+
+        <div className="mb-4 rounded-lg border border-[var(--border)] bg-white p-4">
+          <p className="font-mono text-[11px] font-medium uppercase tracking-[0.2em] text-[var(--text-soft)]">Funeral Desk</p>
+          <DeskAssignmentsPanel funeralId={id} />
+          <MemorialPageManager funeralId={id} />
+          <QrCodePanel funeralId={id} />
+          <CommitteePositionsPanel funeralId={id} deceasedFamilyId={funeral.deceased_family} />
+        </div>
+
+        <h2 className="font-display mt-4 text-xl">Ledger</h2>
+        <ObligationFilters
+          rateType={rateType}
+          onRateType={setRateType}
+          paymentStatus={paymentStatus}
+          onPaymentStatus={setPaymentStatus}
+        />
+        <ObligationTable funeralId={id} obligations={obligations} isLoading={isLoading} />
+
+        <GiftLedgerPanel funeralId={id} />
+        <InLawContributionsPanel funeralId={id} />
+
+        <FinancialOverviewStrip funeralId={id} />
+        <ExpensePanel funeralId={id} />
+        <AttendancePanel funeralId={id} />
+        {funeral.status === "closed" && <ClosingReportPanel funeralId={id} />}
+      </main>
+    </div>
+  );
+}
+
+function RateChip({ label, amount, accent }: { label: string; amount: string; accent: "forest" | "gold" }) {
+  const tint = accent === "forest" ? "var(--forest)" : "var(--gold)";
+  return (
+    <div className="flex items-center gap-2">
+      <span aria-hidden className="h-2 w-2 rounded-full" style={{ backgroundColor: tint }} />
+      <span className="text-[var(--text-soft)]">{label}:</span>
+      <span className="font-mono font-medium">{formatCedis(amount)}</span>
+    </div>
+  );
+}
